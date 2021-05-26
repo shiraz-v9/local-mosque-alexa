@@ -48,29 +48,27 @@ const getLocalTiming = {
           const lastRun = new Date(d).toLocaleString("en-GB", {
             day: "numeric",
           });
-
           var today = new Date().getDate();
-          var result = "";
+          var result = "nothing";
+          console.log(`last run ${lastRun} - today ${today}`);
           if (lastRun == today) {
             console.log("we have a match".toUpperCase());
-            console.log(SalahTimes);
+            // console.log(SalahTimes);
             result = await nextPrayer(SalahTimes);
             console.log(result);
           } else {
             console.log("fetch new data".toUpperCase());
-            console.log(SalahTimes);
-            result = await nextPrayer(SalahTimes);
-
-            console.log("OLD", result);
+            result = await fetchNewData();
+            console.log(result);
           }
         }
 
-        // return (
-        //   handlerInput.responseBuilder
-        //     .speak(result)
-        //     //.reprompt('add a reprompt if you want to keep the session open for the user to respond')
-        //     .getResponse()
-        // );
+        return (
+          handlerInput.responseBuilder
+            .speak(result)
+            //.reprompt('add a reprompt if you want to keep the session open for the user to respond')
+            .getResponse()
+        );
       }
     } catch (error) {
       console.log(error);
@@ -83,6 +81,21 @@ const getLocalTiming = {
       );
     }
   },
+};
+
+const fetchNewData = async () => {
+  try {
+    const fetchNew = await axios.get(
+      "https://simplescraper.io/api/2DunOAEeTC0eVsWmKZdy?apikey=qX9nGMQbRKalPD4ggdCVswIqFTgoX3M9&run_now=true&limit=100"
+    );
+    if (fetchNew.data) {
+      console.log("data was fetched".toUpperCase());
+      return "data is fetched";
+    }
+  } catch (error) {
+    console.log(error);
+    return `error- ${error}`;
+  }
 };
 
 const timeConversion24 = (s) => {
@@ -106,10 +119,12 @@ const timeConversion24 = (s) => {
 
 const nextPrayer = async (arraySalah) => {
   var new24HSalah = [];
-  // var currentDate = new Date().toLocaleTimeString("en-UK", {
-  //   hour12: false,
-  // });
-  var currentDate = "23:20:00";
+  // var currentDate = "22:00:00";
+
+  var currentDate = moment().add(1, "h").format("HH:mm:ss");
+  //local testing only
+  // var currentDate = moment().format("HH:mm:ss");
+
   for (x in arraySalah) {
     var salahTime =
       arraySalah[0] == arraySalah[x]
@@ -118,33 +133,38 @@ const nextPrayer = async (arraySalah) => {
 
     await new24HSalah.push(salahTime);
   }
-  console.log(new24HSalah, currentDate);
+  console.log(new24HSalah);
 
   var next = nextMatch(new24HSalah, currentDate);
   return timeLeft(next, currentDate, new24HSalah);
 };
 
-const timeLeft = (next, currentDate, arr) => {
-  // var alg = next == undefined ? alg == arr[0] : alg == next;
-  console.log(`${next} --test 2 `);
+const timeLeft = (next, myTime, arr) => {
+  var names = ["Fajr", "Zoher", "Aser", "Magreeb", "Eeshaa"];
+
+  const getName = () => {
+    return `${names[arr.indexOf(next)]}`;
+  };
   var m1 = next.slice(3, 5);
-  var m2 = currentDate.slice(3, 5);
+  var m2 = myTime.slice(3, 5);
 
   var h1 = next.slice(0, 2);
-  var h2 = currentDate.slice(0, 2);
+  var h2 = myTime.slice(0, 2);
 
   var a = moment().add({ hours: h2, minutes: m2 });
   var b = moment().add({ hours: h1, minutes: m1 });
 
-  console.log(`${h1}:${m1}masjid--${h2}:${m1}mine - ${next} \n`);
+  console.log(`[${h1}:${m1}masjid] - [${h2}:${m2}mine] - [${next}salah] \n`);
 
-  console.log(`${a.to(b)}`);
-  return `next namaz will be ${a.to(b)} at ${next} - my time ${currentDate}`;
+  // console.log(`${a.to(b)}`, moment(`${h1}:${m1}`, ["HH:mm"]).format("hh mm A"));
+  return `${getName()} will be ${a.to(b)} at ${moment(`${h1}:${m1}`, [
+    "HH:mm",
+  ]).format("hh mm A")}`;
 };
 
-const nextMatch = (arr, value) => {
+const nextMatch = (arr, myDate) => {
   var i = arr.length;
-  while (arr[--i] > value) {}
+  while (arr[--i] >= myDate) {}
   var alg = arr[++i] == undefined ? arr[0] : arr[i++];
   return alg;
 };
@@ -157,7 +177,8 @@ const HelpIntentHandler = {
     );
   },
   handle(handlerInput) {
-    const speakOutput = "You can say hello to me! How can I help?";
+    const speakOutput =
+      "I can tell next available prayer times from Masjid Noor ask me for next prayer";
 
     return handlerInput.responseBuilder
       .speak(speakOutput)
@@ -176,7 +197,7 @@ const CancelAndStopIntentHandler = {
     );
   },
   handle(handlerInput) {
-    const speakOutput = "Goodbye!";
+    const speakOutput = "Alright";
     return handlerInput.responseBuilder.speak(speakOutput).getResponse();
   },
 };
@@ -205,7 +226,7 @@ const IntentReflectorHandler = {
   },
   handle(handlerInput) {
     const intentName = Alexa.getIntentName(handlerInput.requestEnvelope);
-    const speakOutput = `You just triggered ${intentName}`;
+    const speakOutput = `You just triggered ${intentName} function`;
 
     return (
       handlerInput.responseBuilder
@@ -225,7 +246,7 @@ const ErrorHandler = {
   },
   handle(handlerInput, error) {
     console.log(`~~~~ Error handled: ${error.stack}`);
-    const speakOutput = `Sorry, I had trouble doing what you asked. Please try again.`;
+    const speakOutput = `Sorry, try again.`;
 
     return handlerInput.responseBuilder
       .speak(speakOutput)
@@ -244,9 +265,9 @@ exports.handler = Alexa.SkillBuilders.custom()
     HelpIntentHandler,
     CancelAndStopIntentHandler,
     SessionEndedRequestHandler,
-    IntentReflectorHandler // make sure IntentReflectorHandler is last so it doesn't override your custom intent handlers
+    IntentReflectorHandler
   )
   .addErrorHandlers(ErrorHandler)
   .lambda();
 
-getLocalTiming.handle();
+//getLocalTiming.handle();
