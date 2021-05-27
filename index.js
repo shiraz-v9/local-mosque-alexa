@@ -4,6 +4,7 @@
 const Alexa = require("ask-sdk-core");
 const axios = require("axios");
 const moment = require("moment");
+const external = require("./previousMatch.js");
 
 const LaunchRequestHandler = {
   canHandle(handlerInput) {
@@ -54,7 +55,13 @@ const getLocalTiming = {
           if (lastRun == today) {
             console.log("we have a match".toUpperCase());
             // console.log(SalahTimes);
-            result = await nextPrayer(SalahTimes);
+
+            let stop = false;
+            if (!stop) {
+              result = await nextPrayer(SalahTimes);
+              console.log("getting that");
+              stop = true;
+            }
             console.log(result);
           } else {
             console.log("fetch new data".toUpperCase());
@@ -62,13 +69,13 @@ const getLocalTiming = {
             console.log(result);
           }
         }
-
-        return (
-          handlerInput.responseBuilder
-            .speak(result)
-            //.reprompt('add a reprompt if you want to keep the session open for the user to respond')
-            .getResponse()
-        );
+        external.findPrevious();
+        // return (
+        //   handlerInput.responseBuilder
+        //     .speak(result)
+        //     //.reprompt('add a reprompt if you want to keep the session open for the user to respond')
+        //     .getResponse()
+        // );
       }
     } catch (error) {
       console.log(error);
@@ -85,13 +92,12 @@ const getLocalTiming = {
 
 const fetchNewData = async () => {
   try {
-    const fetchNew = await axios.get(
+    await axios.get(
       "https://simplescraper.io/api/2DunOAEeTC0eVsWmKZdy?apikey=qX9nGMQbRKalPD4ggdCVswIqFTgoX3M9&run_now=true&limit=100"
     );
-    if (fetchNew.data) {
-      console.log("data was fetched".toUpperCase());
-      return "data is fetched";
-    }
+
+    console.log("data was fetched".toUpperCase());
+    return "data is fetched";
   } catch (error) {
     console.log(error);
     return `error- ${error}`;
@@ -119,11 +125,11 @@ const timeConversion24 = (s) => {
 
 const nextPrayer = async (arraySalah) => {
   var new24HSalah = [];
-  // var currentDate = "22:00:00";
+  // var currentDate = "23:00:00";
 
-  var currentDate = moment().add(1, "h").format("HH:mm:ss");
+  // var currentDate = moment().add(1, "h").format("HH:mm:ss");
   //local testing only
-  // var currentDate = moment().format("HH:mm:ss");
+  var currentDate = moment().format("HH:mm:ss");
 
   for (x in arraySalah) {
     var salahTime =
@@ -159,7 +165,7 @@ const timeLeft = (next, myTime, arr) => {
   // console.log(`${a.to(b)}`, moment(`${h1}:${m1}`, ["HH:mm"]).format("hh mm A"));
   return `${getName()} will be ${a.to(b)} at ${moment(`${h1}:${m1}`, [
     "HH:mm",
-  ]).format("hh mm A")}`;
+  ]).format("h mm A")}`;
 };
 
 const nextMatch = (arr, myDate) => {
@@ -270,4 +276,4 @@ exports.handler = Alexa.SkillBuilders.custom()
   .addErrorHandlers(ErrorHandler)
   .lambda();
 
-//getLocalTiming.handle();
+getLocalTiming.handle();
