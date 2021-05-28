@@ -4,7 +4,7 @@
 const Alexa = require("ask-sdk-core");
 const axios = require("axios");
 const moment = require("moment");
-const external = require("./previousMatch.js");
+const resp = require("./alexaResponse.js");
 
 const LaunchRequestHandler = {
   canHandle(handlerInput) {
@@ -32,60 +32,46 @@ const getLocalTiming = {
       const fetch = await axios.get(
         "https://simplescraper.io/api/2DunOAEeTC0eVsWmKZdy?apikey=qX9nGMQbRKalPD4ggdCVswIqFTgoX3M9&limit=100"
       );
+      console.log(fetch.status);
 
-      if (fetch.data.data.status == 400) {
-        console.log(fetch.data.data.error);
-      } else {
-        var SalahTimes = [
-          fetch.data.data[0].fajr,
-          fetch.data.data[0].zuhr,
-          fetch.data.data[0].asr,
-          fetch.data.data[0].maghreeb,
-          fetch.data.data[0].ishaa,
-        ];
-        console.log(`data fetched from ${fetch.data.name}`);
-        if (fetch.data.date_last_ran) {
-          var d = fetch.data.date_last_ran;
-          const lastRun = new Date(d).toLocaleString("en-GB", {
-            day: "numeric",
-          });
-          var today = new Date().getDate();
-          var result = "nothing";
-          console.log(`last run ${lastRun} - today ${today}`);
-          if (lastRun == today) {
-            console.log("we have a match".toUpperCase());
-            // console.log(SalahTimes);
+      var SalahTimes = [
+        fetch.data.data[0].fajr,
+        fetch.data.data[0].zuhr,
+        fetch.data.data[0].asr,
+        fetch.data.data[0].maghreeb,
+        fetch.data.data[0].ishaa,
+      ];
+      console.log(`data fetched from ${fetch.data.name} `);
+      if (fetch.data.date_last_ran) {
+        var d = fetch.data.date_last_ran;
+        const lastRun = new Date(d).toLocaleString("en-GB", {
+          day: "numeric",
+        });
+        var today = new Date().getDate();
+        var result = "nothing";
+        console.log(`last run ${lastRun} - today ${today}`);
+        if (lastRun == today) {
+          console.log("we have a match".toUpperCase());
 
-            let stop = false;
-            if (!stop) {
-              result = await nextPrayer(SalahTimes);
-              console.log("getting that");
-              stop = true;
-            }
-            console.log(result);
-          } else {
-            console.log("fetch new data".toUpperCase());
-            result = await fetchNewData();
-            console.log(result);
+          let stop = true;
+          if (stop == true) {
+            result = await nextPrayer(SalahTimes);
+            console.log("getting that");
+            stop == false;
           }
+          console.log(result);
+          return resp.alexaResponse(handlerInput, result);
+        } else {
+          console.log("fetch new data".toUpperCase());
+          result = await fetchNewData();
+          console.log(result);
+          return resp.alexaResponse(handlerInput, result);
         }
-        external.findPrevious();
-        // return (
-        //   handlerInput.responseBuilder
-        //     .speak(result)
-        //     //.reprompt('add a reprompt if you want to keep the session open for the user to respond')
-        //     .getResponse()
-        // );
       }
     } catch (error) {
       console.log(error);
 
-      return (
-        handlerInput.responseBuilder
-          .speak("Something went wrong")
-          //.reprompt('add a reprompt if you want to keep the session open for the user to respond')
-          .getResponse()
-      );
+      return resp.alexaResponse(handlerInput, "Something went wrong" + error);
     }
   },
 };
@@ -125,8 +111,9 @@ const timeConversion24 = (s) => {
 
 const nextPrayer = async (arraySalah) => {
   var new24HSalah = [];
+  //manual testing
   // var currentDate = "23:00:00";
-
+  //echo device time
   // var currentDate = moment().add(1, "h").format("HH:mm:ss");
   //local testing only
   var currentDate = moment().format("HH:mm:ss");
@@ -162,7 +149,6 @@ const timeLeft = (next, myTime, arr) => {
 
   console.log(`[${h1}:${m1}masjid] - [${h2}:${m2}mine] - [${next}salah] \n`);
 
-  // console.log(`${a.to(b)}`, moment(`${h1}:${m1}`, ["HH:mm"]).format("hh mm A"));
   return `${getName()} will be ${a.to(b)} at ${moment(`${h1}:${m1}`, [
     "HH:mm",
   ]).format("h mm A")}`;
